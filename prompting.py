@@ -2,7 +2,7 @@ import requests
 import json
 
 
-def get_ollama_response(prompt, model="llama3.2"):
+def stream_ollama_response(prompt, model="llama3.2"):
     url = "http://localhost:11434/api/chat"
     prompt = prompt
     payload = {
@@ -38,6 +38,25 @@ def get_ollama_response(prompt, model="llama3.2"):
     return all_response
 
 
+def get_ollama_response(prompt, model="llama3.2"):
+    url = "http://localhost:11434/api/generate"
+    prompt = prompt + "only the answer is needed."
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False
+    }
+    response = requests.post(url, json=payload)
+    # checking if ollama is running
+    if response.status_code == 200:
+        answer = response.json()["response"]
+        return answer
+    else:
+        print(f"Error: {response.status_code}")
+        print(response.text)
+
+
 if __name__ == "__main__":
-    prompt = "Provide me a short story about a soldier"
+    # sample prompt
+    prompt = "What is the capital of France? Only the answer is needed."
     get_ollama_response(prompt)
