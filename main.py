@@ -1,52 +1,86 @@
 import json
 from rouge_score import rouge_scorer
-from prompting import get_ollama_response
+import asyncio
+import ollama
 
-dataset_path = 'SQuAD/dev-v2.0.json'
-count = 0
+import aiofiles
+
+dataset_path = "SQuAD/dev-v2.0.json"
+
+
+# Generate with Ollama SDK
+async def generate(context, question, client, model="llama3.2"):
+    question = f"Given the context, provide only the simple answer (no need for full sentence or phrase) based from the context, without any end punction :\nContext:\n{context}\nQuestion:\n{question}"
+
+    response = await client.generate(model, question)
+    return response["response"]
 
 
 def score(ground_truth, llm_answer):
-    global count
-    count += 1
-    print(f"scoring question {count}")
-    scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
+    scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(ground_truth, llm_answer)
-    return scores['rougeL']
+    return scores["rougeL"]
 
 
-def save_results(results):
-    print('Saving results...')
-    with open('results.json', 'w') as file:
-        json.dump(results, file, indent=2)
+async def async_save_results(results):
+    print("Saving results...")
+    results_json = json.dumps(results, indent=2)
+    async with aiofiles.open("results.json", "w") as file:
+        await file.write(results_json)
 
 
-def evaluate_llm():
+async def evaluate_llm():
     results = {}
-    with open(dataset_path, 'r') as file:
-        dataset = json.load(file)
-        print('Evaluating LLM...')
-        for data in dataset['data']:
-            for paragraph in data['paragraphs']:
-                for qa in paragraph['qas']:
-                    if not qa['is_impossible']:
-                        question = qa['question']
-                        ground_truth = qa['answers'][0]['text']
+    client = ollama.AsyncClient()
 
-                        llm_answer = get_ollama_response(question)
-                        rouge_score = score(ground_truth, llm_answer)
+    # Asynchronously read the dataset file
+    async with aiofiles.open(dataset_path, mode="r") as file:
+        content = await file.read()
+        dataset = json.loads(content)
+        print("Evaluating LLM asynchronously...")
+        global count
+        tasks = []
+        questions = []
+        ground_truths = []
 
-                        results[question] = {
-                            'ground_truth': ground_truth,
-                            'llm_answer': llm_answer,
-                            'rouge_score': {'precision': rouge_score.precision,
-                                            'recall': rouge_score.recall,
-                                            'fmeasure': rouge_score.fmeasure}
-                        }
+        for data in dataset["data"]:
+            for paragraph in data["paragraphs"]:
+                for qa in paragraph["qas"]:
+                    if not qa["is_impossible"]:
+                        context = paragraph["context"]
+                        question = qa["question"]
+                        ground_truth = qa["answers"][0]["text"]
 
-    save_results(results)
-    print('Evaluation completed!')
+                        questions.append(question)
+                        ground_truths.append(ground_truth)
+                        tasks.append(generate(context, question, client))
+
+    # Run all LLM queries concurrently
+    llm_answers = await asyncio.gather(*tasks)
+
+    print("scoring questions")
+    for question, ground_truth, llm_answer in zip(
+        questions, ground_truths, llm_answers
+    ):
+        if llm_answer:
+            rouge_score = score(ground_truth, llm_answer)
+            results[question] = {
+                "ground_truth": ground_truth,
+                "llm_answer": llm_answer,
+                "rouge_score": {
+                    "precision": rouge_score.precision,
+                    "recall": rouge_score.recall,
+                    "fmeasure": rouge_score.fmeasure,
+                },
+            }
+    # Save results asynchronously
+    await async_save_results(results)
+    print("Evaluation completed!")
 
 
-if __name__ == '__main__':
-    evaluate_llm()
+async def main():
+    await evaluate_llm()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
