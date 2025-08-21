@@ -10,7 +10,7 @@
 - Visualizations for accuracy and score distribution
 - Ready for further analysis of LLM truthfulness and reliability
 
-## Tech Stack :hammer and wrench:
+## Tech Stack :hammer_and_wrench:
 - **Llama3.2** LLM model for answer generation
 - **SQuAD2.0** dataset (Stanford Question Answering Dataset v2.0)
 - **Python 3.13.1**
@@ -37,4 +37,4 @@
 
 
 ## License :scroll:
-MIT
+[MIT](LICENSE)
