@@ -1,7 +1,6 @@
 name: Dependabot auto-merge
 on:
   pull_request_target:
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,4 +23,4 @@ jobs:
         run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
