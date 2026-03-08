@@ -59,7 +59,7 @@ pytz==2024.2
 pywin32==307
 pyzmq==26.2.0
 regex==2024.11.6
-requests==2.32.3
+requests==2.32.4
 rouge_score==0.1.2
 seaborn==0.13.2
 setuptools==75.1.0
